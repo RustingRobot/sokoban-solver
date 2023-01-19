@@ -11,5 +11,5 @@
 Input a board by typing each line individualy or by typing in the name of a text file 
 with the board information.
 
-b = block, w = wall, s = space, p = player, empty line = confirm board
+$ = block, # = wall, @ = player, . = target, * = block on target, empty line = confirm
 --------------------------------------------------------------------------------------
