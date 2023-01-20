@@ -4,7 +4,7 @@ use std::io;
 use std::io::prelude::*;
 use std::ops::Add;
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 enum Direction {
     Left,
     Right,
@@ -12,7 +12,7 @@ enum Direction {
     Down,
 }
 
-#[derive(PartialEq, Clone, Copy)]
+#[derive(PartialEq, Clone, Copy, Debug)]
 struct Pos {
     x: i128,
     y: i128,
@@ -29,7 +29,7 @@ impl Add for Pos {
     }
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 struct Board {
     size: Pos,
     blocks: Vec<Pos>,
@@ -50,7 +50,7 @@ impl Board {
     }
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 struct Step {
     current_board: Board,
     move_nr: i128,
@@ -65,6 +65,7 @@ fn main() {
     let stdin = io::stdin();
     for line in stdin.lock().lines() {
         let content = line.as_ref().unwrap();
+        let content = "examples/1.txt";
         if content == "" {
             //confirm board
             break;
@@ -112,6 +113,7 @@ fn build_board(st: Vec<String>) -> (Board, Vec<Pos>) {
             pos.x += 1;
         }
         pos.y += 1;
+        pos.x = 0;
     }
 
     b.size = Pos {
@@ -135,8 +137,9 @@ fn solve((b, s): (Board, Vec<Pos>)) {
     });
 
     while !queue.is_empty() {
+        println!("{}", queue.len());
         let nxt_step = queue.pop_front().unwrap();
-
+        println!("{}", queue.len());
         if nxt_step.current_board.blocks == s {
             println!(
                 "nr of moves: {0} moves: [{1}]",
@@ -146,16 +149,24 @@ fn solve((b, s): (Board, Vec<Pos>)) {
         }
 
         for i in 0..4 {
-            add_move(
-                queue.clone(),
+            if let Some(i) = add_move(
                 nxt_step.clone(),
                 nxt_step.current_board.clone(),
                 Pos {
                     x: i % 2 * (1 - 2 * (i > 1) as i128),
                     y: (1 - i % 2) * (1 - 2 * (i > 1) as i128),
                 },
-            )
+            ) {
+                if queue
+                    .iter()
+                    .position(|x| x.current_board == i.current_board)
+                    == None
+                {
+                    queue.push_back(i);
+                }
+            }
         }
+        println!("{}", queue.len());
     }
 }
 
@@ -178,26 +189,27 @@ fn get_moves(mut s: &Step) -> String {
     move_str.chars().rev().collect::<String>()
 }
 
-fn add_move(mut queue: VecDeque<Step>, s: Step, mut curr_board: Board, mov: Pos) {
+fn add_move(s: Step, mut curr_board: Board, mov: Pos) -> Option<Step> {
+    println!("test");
     let player_pos = curr_board.player + mov;
-    if (0..curr_board.size.x + 1).contains(&player_pos.x)
-        || (0..curr_board.size.y + 1).contains(&player_pos.y)
+    if !(0..curr_board.size.x + 1).contains(&player_pos.x)
+        || !(0..curr_board.size.y + 1).contains(&player_pos.y)
         || curr_board.walls.contains(&player_pos)
     {
-        return;
+        return None;
     }
 
     if let Some(i) = curr_board.blocks.iter().position(|x| x == &player_pos) {
         let block_pos = curr_board.blocks[i] + player_pos;
-        if (0..curr_board.size.x + 1).contains(&block_pos.x)
-            || (0..curr_board.size.y + 1).contains(&block_pos.y)
+        if !(0..curr_board.size.x + 1).contains(&block_pos.x)
+            || !(0..curr_board.size.y + 1).contains(&block_pos.y)
             || curr_board.walls.contains(&block_pos)
         {
-            return;
+            return None;
         }
 
         if curr_board.blocks.contains(&block_pos) {
-            return;
+            return None;
         }
         curr_board.blocks[i] = curr_board.blocks[i] + player_pos;
     }
@@ -210,11 +222,11 @@ fn add_move(mut queue: VecDeque<Step>, s: Step, mut curr_board: Board, mov: Pos)
             match mov {
                 Pos { x: -1, y: 0 } => Direction::Left,
                 Pos { x: 1, y: 0 } => Direction::Right,
-                Pos { x: 0, y: 1 } => Direction::Up,
+                Pos { x: 0, y: -1 } => Direction::Up,
                 _ => Direction::Down,
             }
         },
         parent: Some(Box::new(s)),
     };
-    queue.push_back(new_step);
+    Some(new_step)
 }
