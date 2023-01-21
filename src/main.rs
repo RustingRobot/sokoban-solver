@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::fs;
 use std::io;
@@ -12,7 +13,7 @@ enum Direction {
     Down,
 }
 
-#[derive(PartialEq, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Hash)]
 struct Pos {
     x: i128,
     y: i128,
@@ -29,7 +30,7 @@ impl Add for Pos {
     }
 }
 
-#[derive(PartialEq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone, Debug, Hash)]
 struct Board {
     size: Pos,
     blocks: Vec<Pos>,
@@ -128,6 +129,7 @@ fn build_board(st: Vec<String>) -> (Board, Vec<Pos>) {
 }
 
 fn solve((b, s): (Board, Vec<Pos>)) {
+    let mut visited_boards = HashSet::new();
     let mut queue: VecDeque<Step> = VecDeque::new();
     queue.push_back(Step {
         current_board: b,
@@ -137,15 +139,14 @@ fn solve((b, s): (Board, Vec<Pos>)) {
     });
 
     while !queue.is_empty() {
-        println!("{}", queue.len());
         let nxt_step = queue.pop_front().unwrap();
-        println!("{}", queue.len());
         if nxt_step.current_board.blocks == s {
             println!(
-                "nr of moves: {0} moves: [{1}]",
+                "length: {0} moves: [{1} ]",
                 nxt_step.move_nr,
-                get_moves(&nxt_step)
+                collect_moves(&nxt_step)
             );
+            return;
         }
 
         for i in 0..4 {
@@ -157,20 +158,18 @@ fn solve((b, s): (Board, Vec<Pos>)) {
                     y: (1 - i % 2) * (1 - 2 * (i > 1) as i128),
                 },
             ) {
-                if queue
-                    .iter()
-                    .position(|x| x.current_board == i.current_board)
-                    == None
-                {
+                if !visited_boards.contains(&i.current_board) {
+                    visited_boards.insert(i.current_board.clone());
                     queue.push_back(i);
+                } else {
+                    println!("not new");
                 }
             }
         }
-        println!("{}", queue.len());
     }
 }
 
-fn get_moves(mut s: &Step) -> String {
+fn collect_moves(mut s: &Step) -> String {
     let mut move_str = String::new();
     loop {
         match s.move_prev {
@@ -185,35 +184,47 @@ fn get_moves(mut s: &Step) -> String {
         } else {
             break;
         }
+        if s.move_nr == 0 {
+            break;
+        }
     }
     move_str.chars().rev().collect::<String>()
 }
 
 fn add_move(s: Step, mut curr_board: Board, mov: Pos) -> Option<Step> {
-    println!("test");
     let player_pos = curr_board.player + mov;
+    //player is out of bounds
     if !(0..curr_board.size.x + 1).contains(&player_pos.x)
         || !(0..curr_board.size.y + 1).contains(&player_pos.y)
         || curr_board.walls.contains(&player_pos)
     {
         return None;
     }
-
+    //player is pushing a block
     if let Some(i) = curr_board.blocks.iter().position(|x| x == &player_pos) {
-        let block_pos = curr_board.blocks[i] + player_pos;
+        println!("pushing block");
+        let block_pos = curr_board.blocks[i] + mov;
         if !(0..curr_board.size.x + 1).contains(&block_pos.x)
             || !(0..curr_board.size.y + 1).contains(&block_pos.y)
             || curr_board.walls.contains(&block_pos)
         {
+            println!("blockpos : {:?}", curr_board.blocks[i]);
+            println!("failed (wall in da way) {:?}", block_pos);
+            println!("all blocks: {:?}", curr_board.blocks);
             return None;
         }
 
         if curr_board.blocks.contains(&block_pos) {
+            println!("failed (block in da way) {:?}", block_pos);
             return None;
         }
-        curr_board.blocks[i] = curr_board.blocks[i] + player_pos;
+        curr_board.blocks[i] = block_pos;
     }
     curr_board.player = curr_board.player + mov;
+
+    if s.move_nr > 33 {
+        panic!("end");
+    }
 
     let new_step = Step {
         current_board: curr_board,
@@ -228,5 +239,6 @@ fn add_move(s: Step, mut curr_board: Board, mov: Pos) -> Option<Step> {
         },
         parent: Some(Box::new(s)),
     };
+    println!("{}", collect_moves(&new_step));
     Some(new_step)
 }
