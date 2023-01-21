@@ -66,11 +66,10 @@ fn main() {
     let stdin = io::stdin();
     for line in stdin.lock().lines() {
         let content = line.as_ref().unwrap();
-        let content = "examples/1.txt";
         if content == "" {
             //confirm board
             break;
-        } else if content.chars().any(|c| c == 'x') {
+        } else if content.contains(".txt") {
             //file name entered
             let board_file = fs::read_to_string(content).expect("not a valid file!");
             board = board_file.split("\r\n").map(|x| x.to_string()).collect();
@@ -80,9 +79,19 @@ fn main() {
             println!("--> [line contained a character that wasn't valid]");
             continue;
         }
+        if board.iter().len() > 0
+            && line.as_ref().unwrap().chars().count()
+                != board.iter().last().unwrap().chars().count()
+        //yeah, this is ugly I know
+        {
+            println!("--> [board must be rectangular (each line must be the same size)]");
+            continue;
+        }
         board.push(line.unwrap().clone());
     }
-
+    if board.iter().len() == 0 {
+        panic!("no lines in Board!");
+    }
     solve(build_board(board));
 }
 
@@ -92,24 +101,27 @@ fn build_board(st: Vec<String>) -> (Board, Vec<Pos>) {
     for l in st.iter() {
         for c in l.chars() {
             match c {
-                '$' => b.blocks.push(pos),
-                '#' => b.walls.push(pos),
+                '$' => b.blocks.push(pos), //Block
+                '#' => b.walls.push(pos),  //Wall
                 '*' => {
+                    //Block on Target
                     b.blocks.push(pos);
                     b.targets.push(pos);
                     s.push(pos);
                 }
                 '.' => {
+                    //Target
                     b.targets.push(pos);
                     s.push(pos);
                 }
                 '+' => {
+                    //Player on Target
                     b.player = pos;
                     b.targets.push(pos);
                     s.push(pos);
                 }
-                '@' => b.player = pos,
-                _ => {}
+                '@' => b.player = pos, //Player
+                _ => {}                //Empty
             }
             pos.x += 1;
         }
@@ -140,14 +152,6 @@ fn solve((b, s): (Board, Vec<Pos>)) {
 
     while !queue.is_empty() {
         let nxt_step = queue.pop_front().unwrap();
-        if nxt_step.current_board.blocks == s {
-            println!(
-                "length: {0} moves: [{1} ]",
-                nxt_step.move_nr,
-                collect_moves(&nxt_step)
-            );
-            return;
-        }
 
         for i in 0..4 {
             if let Some(i) = add_move(
@@ -158,15 +162,30 @@ fn solve((b, s): (Board, Vec<Pos>)) {
                     y: (1 - i % 2) * (1 - 2 * (i > 1) as i128),
                 },
             ) {
-                if !visited_boards.contains(&i.current_board) {
-                    visited_boards.insert(i.current_board.clone());
-                    queue.push_back(i);
-                } else {
-                    println!("not new");
+                if visited_boards.contains(&i.current_board) {
+                    continue;
                 }
+
+                if same_board(&nxt_step.current_board.blocks, &s) {
+                    println!(
+                        "length: {0} moves: [{1} ]",
+                        nxt_step.move_nr,
+                        collect_moves(&nxt_step)
+                    );
+                    return;
+                }
+
+                visited_boards.insert(i.current_board.clone());
+                queue.push_back(i);
             }
         }
     }
+}
+
+fn same_board(v0: &Vec<Pos>, v1: &Vec<Pos>) -> bool {
+    let s0: HashSet<&Pos> = v0.iter().collect();
+    let s1: HashSet<&Pos> = v1.iter().collect();
+    s0 == s1
 }
 
 fn collect_moves(mut s: &Step) -> String {
@@ -193,38 +212,31 @@ fn collect_moves(mut s: &Step) -> String {
 
 fn add_move(s: Step, mut curr_board: Board, mov: Pos) -> Option<Step> {
     let player_pos = curr_board.player + mov;
-    //player is out of bounds
     if !(0..curr_board.size.x + 1).contains(&player_pos.x)
         || !(0..curr_board.size.y + 1).contains(&player_pos.y)
         || curr_board.walls.contains(&player_pos)
     {
+        //player is out of bounds
         return None;
     }
-    //player is pushing a block
     if let Some(i) = curr_board.blocks.iter().position(|x| x == &player_pos) {
-        println!("pushing block");
+        //player is pushing a block
         let block_pos = curr_board.blocks[i] + mov;
         if !(0..curr_board.size.x + 1).contains(&block_pos.x)
             || !(0..curr_board.size.y + 1).contains(&block_pos.y)
             || curr_board.walls.contains(&block_pos)
         {
-            println!("blockpos : {:?}", curr_board.blocks[i]);
-            println!("failed (wall in da way) {:?}", block_pos);
-            println!("all blocks: {:?}", curr_board.blocks);
+            //player is pushing a block into a wall
             return None;
         }
 
         if curr_board.blocks.contains(&block_pos) {
-            println!("failed (block in da way) {:?}", block_pos);
+            //player is pushing a block into another block
             return None;
         }
         curr_board.blocks[i] = block_pos;
     }
     curr_board.player = curr_board.player + mov;
-
-    if s.move_nr > 33 {
-        panic!("end");
-    }
 
     let new_step = Step {
         current_board: curr_board,
@@ -239,6 +251,5 @@ fn add_move(s: Step, mut curr_board: Board, mov: Pos) -> Option<Step> {
         },
         parent: Some(Box::new(s)),
     };
-    println!("{}", collect_moves(&new_step));
     Some(new_step)
 }
