@@ -66,7 +66,7 @@ fn main() {
     let stdin = io::stdin();
     for line in stdin.lock().lines() {
         let content = line.as_ref().unwrap();
-        if content == "" {
+        if content.is_empty() {
             //confirm board
             break;
         } else if content.contains(".txt") {
@@ -182,7 +182,7 @@ fn solve((b, s): (Board, Vec<Pos>)) {
     }
 }
 
-fn same_board(v0: &Vec<Pos>, v1: &Vec<Pos>) -> bool {
+fn same_board(v0: &[Pos], v1: &[Pos]) -> bool {
     let s0: HashSet<&Pos> = v0.iter().collect();
     let s1: HashSet<&Pos> = v1.iter().collect();
     s0 == s1
@@ -199,7 +199,7 @@ fn collect_moves(mut s: &Step) -> String {
         }
 
         if let Some(i) = &s.parent {
-            s = &i;
+            s = i;
         } else {
             break;
         }
