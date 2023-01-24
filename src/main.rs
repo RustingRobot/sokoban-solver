@@ -5,7 +5,7 @@ use std::io;
 use std::io::prelude::*;
 use std::ops::Add;
 
-#[derive(PartialEq, Clone, Debug)]
+#[derive(PartialEq, Clone)]
 enum Direction {
     Left,
     Right,
@@ -13,7 +13,7 @@ enum Direction {
     Down,
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug, Hash)]
+#[derive(PartialEq, Eq, Clone, Copy, Hash)]
 struct Pos {
     x: i128,
     y: i128,
@@ -30,7 +30,7 @@ impl Add for Pos {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Debug, Hash)]
+#[derive(PartialEq, Eq, Clone, Hash)]
 struct Board {
     size: Pos,
     blocks: Vec<Pos>,
@@ -51,7 +51,7 @@ impl Board {
     }
 }
 
-#[derive(PartialEq, Clone, Debug)]
+#[derive(PartialEq, Clone)]
 struct Step {
     current_board: Board,
     move_nr: i128,
